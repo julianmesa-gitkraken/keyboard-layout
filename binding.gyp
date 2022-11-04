@@ -6,7 +6,7 @@
         "src/keyboard-layout-manager.cc"
       ],
       "include_dirs": [
-        "<!(node -e \"require('nan')\")",
+        "<!(node -e \"require('@axosoft/nan')\")",
         "chrome_headers",
       ],
       "conditions": [

@@ -6,7 +6,7 @@ NAN_MODULE_INIT(init) {
   Nan::HandleScope scope;
   Local<FunctionTemplate> newTemplate = Nan::New<FunctionTemplate>(KeyboardLayoutManager::New);
   newTemplate->SetClassName(Nan::New<String>("KeyboardLayoutManager").ToLocalChecked());
-  newTemplate->InstanceTemplate()->SetInternalFieldCount(1);
+  newTemplate->InstanceTemplate()->SetInternalFieldCount(2);
 
   Local<ObjectTemplate> proto = newTemplate->PrototypeTemplate();
 
