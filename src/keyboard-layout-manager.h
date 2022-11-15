@@ -17,6 +17,8 @@ class KeyboardLayoutManager : public Nan::ObjectWrap {
   static NAN_METHOD(GetInstalledKeyboardLanguages);
   static NAN_METHOD(GetCurrentKeymap);
 
+  Nan::Callback *callback;
+
  private:
   KeyboardLayoutManager(v8::Isolate* isolate, Nan::Callback *callback);
   ~KeyboardLayoutManager();
@@ -30,7 +32,7 @@ class KeyboardLayoutManager : public Nan::ObjectWrap {
 #endif
 
   v8::Isolate *isolate_;
-  Nan::Callback *callback;
+
 };
 
 #endif  // SRC_KEYBORD_LAYOUT_OBSERVER_H_

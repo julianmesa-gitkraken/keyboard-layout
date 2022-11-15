@@ -9,12 +9,11 @@
 
 using namespace v8;
 
-uv_loop_t *loop = uv_default_loop();
-uv_async_t async;
+uv_async_t *async;
 
 static void notificationHandler(CFNotificationCenterRef center, void *manager, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-  async.data = manager;
-  uv_async_send(&async);
+  async->data = manager;
+  uv_async_send(async);
 }
 
 static void asyncSendHandler(uv_async_t *handle) {
@@ -29,10 +28,18 @@ static void RemoveCFObserver(void *arg) {
     kTISNotifySelectedKeyboardInputSourceChanged,
     NULL
   );
+
+  uv_close(reinterpret_cast<uv_handle_t *>(async), [](uv_handle_t *handle){
+    // in this case handle is the async var
+    free(handle);
+  });
+  delete manager->callback;
 }
 
-KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *callback) : isolate_(isolate), callback(callback) {
-  uv_async_init(loop, &async, (uv_async_cb) asyncSendHandler);
+KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *callback) : callback(callback) {
+  uv_loop_t *loop = node::GetCurrentEventLoop(isolate);
+  async = (uv_async_t *) malloc(sizeof(uv_async_t));
+  uv_async_init(loop, async, (uv_async_cb) asyncSendHandler);
 
   CFNotificationCenterAddObserver(
       CFNotificationCenterGetDistributedCenter(),
@@ -47,20 +54,18 @@ KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback
   node::AddEnvironmentCleanupHook(
     isolate,
     RemoveCFObserver,
-    const_cast<void*>(static_cast<const void*>(nullptr)));
+    const_cast<void*>(static_cast<const void*>(this)));
 #endif
 }
 
 KeyboardLayoutManager::~KeyboardLayoutManager() {
-#if NODE_MAJOR_VERSION >= 10
-  node::RemoveEnvironmentCleanupHook(
-    isolate(),
-    RemoveCFObserver,
-    const_cast<void*>(static_cast<const void*>(this))
-  );
-#endif
+#if NODE_MAJOR_VERSION < 10
   RemoveCFObserver(this);
+  uv_close(reinterpret_cast<uv_handle_t *>(async), [](uv_handle_t *handle){
+    free(handle);
+  });
   delete callback;
+#endif
 };
 
 void KeyboardLayoutManager::HandleKeyboardLayoutChanged() {
