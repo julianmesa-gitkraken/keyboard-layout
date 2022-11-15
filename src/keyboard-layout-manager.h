@@ -18,18 +18,16 @@ class KeyboardLayoutManager : public Nan::ObjectWrap {
   static NAN_METHOD(GetCurrentKeymap);
 
   Nan::Callback *callback;
-
- private:
-  KeyboardLayoutManager(v8::Isolate* isolate, Nan::Callback *callback);
-  ~KeyboardLayoutManager();
-
-  v8::Isolate* isolate() { return isolate_; }
-
 #if defined(__linux__) || defined(__FreeBSD__)
   Display *xDisplay;
   XIC xInputContext;
   XIM xInputMethod;
 #endif
+ private:
+  KeyboardLayoutManager(v8::Isolate* isolate, Nan::Callback *callback);
+  ~KeyboardLayoutManager();
+
+  v8::Isolate* isolate() { return isolate_; }
 
   v8::Isolate *isolate_;
 
