@@ -1,10 +1,10 @@
 {
-  "name": "@axosoft/keyboard-layout",
+  "name": "keyboard-layout",
   "version": "2.0.18-gk.1",
   "description": "Read and observe the current keyboard layout on OS X.",
   "main": "./lib/keyboard-layout",
   "scripts": {
-    "test": "jasmine-focused --captureExceptions --forceexit spec"
+    "test": "node --expose-gc ./node_modules/jasmine-focused/bin/jasmine-focused --captureExceptions --forceexit spec"
   },
   "repository": {
     "type": "git",

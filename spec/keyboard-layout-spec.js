@@ -2,6 +2,24 @@
 
 const KeyboardLayout = require('../lib/keyboard-layout')
 
+// aggressively collects garbage until we fail to improve terminatingIteration times.
+function garbageCollect() {
+  const terminatingIterations = 3;
+  let usedBeforeGC = Number.MAX_VALUE;
+  let nondecreasingIterations = 0;
+  for (; ;) {
+    global.gc();
+    const usedAfterGC = process.memoryUsage().heapUsed;
+    if (usedAfterGC >= usedBeforeGC) {
+      nondecreasingIterations++;
+      if (nondecreasingIterations >= terminatingIterations) {
+        break;
+      }
+    }
+    usedBeforeGC = usedAfterGC;
+  }
+}
+
 describe('Keyboard Layout', () => {
   if (process.platform === 'darwin' || process.platform === 'win32') {
     describe('.getCurrentKeymap()', function () {
@@ -78,7 +96,7 @@ describe('Keyboard Layout', () => {
       })
     })
 
-    describe('.getInstalledKeyboardLanguages()', () => {
+    fdescribe('.getInstalledKeyboardLanguages()', () => {
       it('returns an array of string keyboard languages', () => {
         const languages = KeyboardLayout.getInstalledKeyboardLanguages()
         expect(Array.isArray(languages)).toBe(true)
@@ -94,7 +112,21 @@ describe('Keyboard Layout', () => {
           }
         })()
       })
+
+      it('test', () => {
+        let KeyboardLayout1 = require('../lib/keyboard-layout');
+        let languages = KeyboardLayout1.getInstalledKeyboardLanguages();
+        expect(Array.isArray(languages)).toBe(true);
+        KeyboardLayout1 = null;
+        garbageCollect();
+        KeyboardLayout1 = require('../lib/keyboard-layout');
+        languages = KeyboardLayout1.getInstalledKeyboardLanguages()
+        KeyboardLayout1 = null;
+        garbageCollect();
+
+      })
     })
+
   }
 
   // Smoke tests on Linux
