@@ -8,19 +8,28 @@
 
 static void CleanContext(void *arg) {
   auto manager = static_cast<KeyboardLayoutManager*>(arg);
-  if (manager->xInputContext) {
-    XDestroyIC(manager->xInputContext);
-  }
-
-  if (manager->xInputMethod) {
-    XCloseIM(manager->xInputMethod);
-  }
-
-  XCloseDisplay(manager->xDisplay);
-  delete manager->callback;
+  manager->freeResources();
 }
 
-KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *callback) : xInputContext{nullptr}, xInputMethod{nullptr}, callback{callback} {
+void KeyboardLayoutManager::freeResources() {
+  if (xInputContext) {
+    XDestroyIC(xInputContext);
+  }
+
+  if (xInputMethod) {
+    XCloseIM(xInputMethod);
+  }
+
+  XCloseDisplay(xDisplay);
+  delete callback;
+  cleanExecuted = true;
+}
+
+KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *_callback) :
+xInputContext{nullptr},
+xInputMethod{nullptr},
+callback{_callback},
+cleanExecuted(false) {
   xDisplay = XOpenDisplay("");
   if (!xDisplay) {
     Nan::ThrowError("Could not connect to X display.");
@@ -65,23 +74,20 @@ KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback
   node::AddEnvironmentCleanupHook(
     isolate,
     CleanContext,
-    const_cast<void*>(static_cast<const void*>(this)));
+    static_cast<void*>(this));
 #endif
 }
 
 KeyboardLayoutManager::~KeyboardLayoutManager() {
-#if NODE_MAJOR_VERSION < 10
-  if (xInputContext) {
-    XDestroyIC(xInputContext);
-  }
-
-  if (xInputMethod) {
-    XCloseIM(xInputMethod);
-  }
-
-  XCloseDisplay(xDisplay);
-  delete callback;
+  if (!cleanExecuted) {
+#if NODE_MAJOR_VERSION >= 10
+    node::RemoveEnvironmentCleanupHook(
+      isolate(),
+      CleanContext,
+      static_cast<void*>(this));
 #endif
+    freeResources();
+  }
 };
 
 void KeyboardLayoutManager::HandleKeyboardLayoutChanged() {

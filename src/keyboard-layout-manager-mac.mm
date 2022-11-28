@@ -20,11 +20,15 @@ static void asyncSendHandler(uv_async_t *handle) {
   (static_cast<KeyboardLayoutManager *>(handle->data))->HandleKeyboardLayoutChanged();
 }
 
-static void RemoveCFObserver(void *arg) {
+static void CleanContext(void *arg) {
   auto manager = static_cast<KeyboardLayoutManager*>(arg);
+  manager->freeResources();
+}
+
+void KeyboardLayoutManager::freeResources() {
   CFNotificationCenterRemoveObserver(
     CFNotificationCenterGetDistributedCenter(),
-    manager,
+    this,
     kTISNotifySelectedKeyboardInputSourceChanged,
     NULL
   );
@@ -33,10 +37,11 @@ static void RemoveCFObserver(void *arg) {
     // in this case handle is the async var
     free(handle);
   });
-  delete manager->callback;
+  delete callback;
+  cleanExecuted = true;
 }
 
-KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *callback) : callback(callback) {
+KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback *_callback) : isolate_(isolate), callback(_callback) {
   uv_loop_t *loop = node::GetCurrentEventLoop(isolate);
   async = (uv_async_t *) malloc(sizeof(uv_async_t));
   uv_async_init(loop, async, (uv_async_cb) asyncSendHandler);
@@ -53,19 +58,21 @@ KeyboardLayoutManager::KeyboardLayoutManager(v8::Isolate *isolate, Nan::Callback
 #if NODE_MAJOR_VERSION >= 10
   node::AddEnvironmentCleanupHook(
     isolate,
-    RemoveCFObserver,
-    const_cast<void*>(static_cast<const void*>(this)));
+    CleanContext,
+    static_cast<void*>(this));
 #endif
 }
 
 KeyboardLayoutManager::~KeyboardLayoutManager() {
-#if NODE_MAJOR_VERSION < 10
-  RemoveCFObserver(this);
-  uv_close(reinterpret_cast<uv_handle_t *>(async), [](uv_handle_t *handle){
-    free(handle);
-  });
-  delete callback;
+  if (!cleanExecuted) {
+#if NODE_MAJOR_VERSION >= 10
+    node::RemoveEnvironmentCleanupHook(
+      isolate(),
+      CleanContext,
+      static_cast<void*>(this));
 #endif
+    freeResources();
+  }
 };
 
 void KeyboardLayoutManager::HandleKeyboardLayoutChanged() {
